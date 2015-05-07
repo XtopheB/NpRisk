@@ -1,0 +1,206 @@
+% La commande est simplement :  Sweave("MonSweave1.Rnw")
+
+\documentclass[a4paper]{article}
+
+\title{The effects of extreme climatic events on dairy farmers' risk preferences:\\
+\textbf{A nonparametric approach} }
+\author{Christophe Bontemps \& Stephane Couture}
+
+\usepackage{Sweave, setspace,graphicx,srcltx,enumitem,harvard, subfig}
+\usepackage{color}
+\definecolor{DarkBlue}{rgb}{0.1,0.1,0.5}
+\definecolor{Red}{rgb}{0.9,0.0,0.1}
+
+
+\begin{document}
+\SweaveOpts{concordance=TRUE}
+
+% Quelques Options de dipart pour mettre les graphiques dans un sous ripertoire
+% et leur donner le nom Graph-001
+
+\SweaveOpts{prefix.string= Graphics/RISK}  
+%\setkeys{Gin}{width=0.8\textwidth}
+
+% Et pour laisser l affichage des commentaires du programmes
+\SweaveOpts{keep.source=TRUE}
+
+% Pour afficher le code en couleur 
+\DefineVerbatimEnvironment{Sinput}{Verbatim}{formatcom = {\color[rgb]{0, 0, 0.56}}}
+\DefineVerbatimEnvironment{Soutput}{Verbatim}{formatcom = {\color[rgb]{0.56, 0, 0}}}
+
+<<echo=false,results=hide, label=packages>>=
+## Start 
+rm(list=ls())
+#setwd("C:/Chris/progs/Optilait")   
+setwd("D:/progs/Optilait")
+
+## libraries
+
+library(np)
+library(foreign)
+library(AER)
+library(Formula)
+library(xtable)
+library(texreg)
+#library(VIM)
+library(reporttools)
+library(ggplot2)
+
+options(np.messages=FALSE)
+
+RVersion <- R.version.string
+npVersion <- packageVersion("np")
+
+
+@
+
+
+<<echo=false,results=hide, label=data>>=
+## DATA 
+# File already merged with weather data
+data.all <- read.dta("data/OptilaitMerge.dta")   # All years 
+attach(data.all)
+@
+
+<<echo=false,results=hide, label=Parameters >>=
+
+NpMethod <- "SILVERMAN"
+#NpMethod <- "CV"
+
+#Number of bootstraps for the  test : ref Li, Maasoumi et Racine (2009)
+Nboot<-39
+
+# Marking special year (2001 ?)
+color.2001 <- as.factor((annee != 2001))
+
+# List of years studied 
+
+yearlist<- c("1996", "1997", "1998", "1999", "2000", "2001", "2002", "2003", "2004", "2005", "2006")
+#yearlist<- c( "1999", "2001",  "2003",  "2005")
+@
+
+
+ {\color{DarkBlue} \maketitle}
+\date
+\abstract{
+For this estimation, we use the {\color{Red}\Sexpr{NpMethod}} method for the computation of np bandwidth (for both f() and g()) : 
+\begin{itemize}
+  \item The total sample size is  \textbf{\Sexpr{nrow(data.all)}}
+  \item We run the computation  over the period \Sexpr{min(yearlist)} - \Sexpr{max(yearlist)} \textbf{\Sexpr{length(unique(yearlist))}} years.
+  \item For the Li, Maasoumi, and Racine (2009) test, we use \textbf{\Sexpr{Nboot}}  bootstraps.
+\end{itemize}
+\textit{We use  the package np (Hayfield and Racine, 2008) version \Sexpr{npVersion} for the estimation of nonparmatric function and distribution test. Computation is done under Windows 8 (64) with \Sexpr{R.version.string}.}
+}
+\tableofcontents
+%\listoffigures
+\newpage
+
+\section{Data}
+
+The dataset f has {\color{DarkBlue}\Sexpr{nrow(data.all)}} observations and is composed of production variables merged at the pedoclimatic region level with climatic information, nammely temperature (T), evapotranspiration (ETP) and hydric stress (DELTA).\footnote{The Hydric stress (DELTAyear) is defined as the différence between precipitation and  evapotranspiration.}   
+
+
+
+<<echo=false,results=hide, label=PlotFunction >>=
+# Ne fonctionne pas correctement !!!
+MonBoxPlotG <- function(x){
+  p <- ggplot(data.all, aes(factor(annee), data.all[, x])) 
+  # Colors + no draw of outliers 
+  p <- p + geom_boxplot(aes(color=color.2001),outlier.colour = NA) 
+  # Compute lower and upper whisker limits
+  sts <- boxplot.stats(data.all[, x])$stats  
+  p+ theme_bw() + coord_cartesian(ylim = c(min(sts)*0.95,max(sts)*1.05))
+}
+
+MonBoxPlot <- function(x){
+  boxplot(data.all[,x]~annee, 
+           outline =FALSE,
+            col= c(0,0,0,0,0,2,0,0,0,0,0),
+            #col=rainbow(12),    ### Add a little color :)
+             main=paste("",names(data.all)[x],"by year"),  ### Give the graph a main title
+            xlab="Year",    #### Give the graph an x-axis label
+            ylab= paste("",names(data.all)[x],"")  #### Give the graph a y-axis label
+  )
+}
+
+
+@
+
+<<fig=TRUE,echo=false, label=BoxVars>>=
+
+par(omi=c(0,0,1,0) )                      #set the size of the outer margins 
+par(mfrow=c(2,2))    
+MonBoxPlot(7)
+MonBoxPlot(14)
+MonBoxPlot(15)
+MonBoxPlot(16)
+mtext("Overview of production and climatic variabes over time",3,outer=TRUE,line=1,cex=1.0) 
+@
+
+
+<<echo=false,results=hide, label=functions>>=
+# loading the functions
+source("Progs/NpRiskFunctions.R")
+@
+
+<<echo=false,results=hide, label=estimation>>=
+
+# creating an empty dataframe 
+risk.all<- read.csv(text="col1,col2")
+
+for (y in 1:length(yearlist)) {
+  print(yearlist[y])
+  risk.foo <- NpAversion(yearlist[y],  bwmethod = NpMethod)
+  risk.year  <- merge(data.all, risk.foo, by = c("ident","annee"))
+  risk.all<- rbind.data.frame(risk.all, risk.year)
+}
+
+@
+
+\section{Results}
+
+<<echo=FALSE,results=tex, label=Table>>=
+
+## Summary statistics Results  
+r <- as.data.frame(risk.all)
+Myvars<- with(risk.all,data.frame( "AR" = r$AR,
+                            "Theta" = r$theta,
+                            "Theta" = r$theta) 
+            )
+
+tableContinuous(vars = Myvars , group = r$annee,  stats = c("n",  "median", "mean","max"),
+                cap = paste("AR, Theta's estimated values by year."),  
+                prec=3, longtable = FALSE
+)
+@
+
+
+
+<<echo=false,results=hide, label=LatXOutput>>=
+
+library(tables)
+risk.all$years <- as.factor(risk.all$annee)
+
+X <- tabular( (years+1) ~ (n=1) + Format(digits=2)*(AR + theta1)*(median + sd), data=risk.all )
+X
+write.table.tabular(X,file = "Graphics/RiskSiverx2.tex")
+@
+
+\subsection{Graphics}
+
+<<echo =false, results=hide,fig=TRUE, label=PlotAR>>=
+risk.all$color.2001 <- as.factor((risk.all$annee != 2001))
+
+# First graph 
+p <- ggplot(risk.all, aes(factor(annee), AR)) 
+# Colors + no draw of outliers 
+p <- p + geom_boxplot(aes(color=color.2001),outlier.colour = NA) 
+
+# Compute lower and upper whisker limits
+sts <- boxplot.stats(risk.all$AR)$stats  
+p+ theme_bw() + coord_cartesian(ylim = c(min(sts)*0.95,max(sts)*1.05))
+@
+
+
+
+\end{document}
