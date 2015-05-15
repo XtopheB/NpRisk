@@ -1,0 +1,405 @@
+% Program exploring the optilait database fron the Stata program
+%  21/01/2015: Importation and first stat desc. 
+
+\documentclass[a4paper]{article}
+\usepackage{Sweave, setspace,graphicx,srcltx,enumitem,harvard, subfig}
+
+% Some Colors
+\usepackage{color}
+
+% COLORS : see webpage http://latexcolor.com/
+
+\definecolor{DarkBlue}{rgb}{0.1,0.1,0.5}
+\definecolor{Red}{rgb}{0.9,0.0,0.1}
+\definecolor{vert}{rgb}{0.1,0.7,0.2}
+\definecolor{brique}{rgb}{0.7,0.16,0.16}
+\definecolor{blue}{rgb}{0.36, 0.54, 0.66}  % airforceblue
+\definecolor{navy}{rgb}{0.0, 0.0, 0.5}        % navyblue
+
+
+\title{The impact of extreme climatic events on farmers' risk preferences\\ {\color{brique}Companion paper !}}
+\author{Christophe Bontemps, Stephane Couture }
+
+
+\begin{document}
+\SweaveOpts{concordance=TRUE}
+
+% Quelques Options de dipart pour mettre les graphiques dans un sous ripertoire
+% et leur donner le nom Graph-001
+
+\SweaveOpts{prefix.string= Graphics/Companion}  
+%\setkeys{Gin}{width=0.8\textwidth}
+
+% Et pour laisser l affichage des commentaires du programmes
+\SweaveOpts{keep.source=TRUE}
+
+\maketitle
+\date
+
+<<echo=false,results=hide, label=packages>>=
+## Start 
+rm(list=ls())
+#setwd("C:/Chris/progs/Optilait")   
+setwd("D:/progs/Optilait")
+
+## libraries
+
+library(np)
+library(foreign)
+library(AER)
+library(Formula)
+library(xtable)
+library(texreg)
+library(coefplot)
+#library(VIM)
+library(reporttools)
+library(ggplot2)
+library(grid)
+
+options(np.messages=FALSE)
+
+RVersion <- R.version.string
+npVersion <- packageVersion("np")
+
+
+@
+
+
+<<echo=false,results=hide, label=data>>=
+## DATA 
+# File already merged with weather data
+data.all <- read.dta("data/OptilaitMerge.dta")   # All years 
+attach(data.all)
+@
+
+<<echo=false,results=hide, label=Parameters >>=
+
+# List of years studied 
+
+yearlist<- c("1996", "1997", "1998", "1999", "2000", "2001", "2002", "2003", "2004", "2005", "2006")
+#yearlist<- c( "1999", "2001",  "2003",  "2005")
+
+# Marking special year (2003)
+year.red <- 2003
+
+# For graphs 
+color.list  <- rep(0,length(yearlist))   # list of zeros
+index.year <- which(match( yearlist, year.red)==1)
+color.list[index.year] <-  2   # 2 is for red 
+# For graphs in ggplot 
+color.year <- as.factor((annee != year.red)) 
+
+@
+
+\clearpage
+
+
+\section{Data}
+
+The dataset has {\color{DarkBlue}\Sexpr{nrow(data.all)}} observations and is composed of production variables merged at the pedoclimatic region level with climatic information, nammely temperature (T), evapotranspiration (ETP) and hydric stress (DELTA).\footnote{The Hydric stress (DELTAyear) is defined as the différence between precipitation and  evapotranspiration.}   
+
+<<echo=false,results=hide, label=PlotFunction >>=
+MonBoxPlot <- function(x){  # With automatic year tag
+  boxplot(data.all[,x]~annee, 
+           outline =FALSE,
+            col = color.list,  # defined automatically above
+            #col= c(0,0,0,0,0,0,0,2,0,0,0),
+            #col=rainbow(12),    ### Add a little color :)
+             main=paste("",names(data.all)[x],"by year"),  ### Give the graph a main title
+            xlab="Year",    #### Give the graph an x-axis label
+            ylab= paste("",names(data.all)[x],"")  #### Give the graph a y-axis label
+  )
+}
+
+# loading the multiplot functions
+source("Progs/multiplot.R")
+@
+
+<<fig=TRUE,echo=false, label=BoxVarsWeather>>=
+par(omi=c(0,0,1,0) )                      #set the size of the outer margins 
+par(mfrow=c(2,2))    
+MonBoxPlot(7)  # Production
+MonBoxPlot(14)
+MonBoxPlot(15)
+MonBoxPlot(16)
+
+mtext("Total production and climatic variables over time",3,outer=TRUE,line=1,cex=1.0) 
+@
+
+<<fig=TRUE,echo=false, label=BoxVarsX>>=
+
+par(omi=c(0,0,1,0) )                      #set the size of the outer margins 
+par(mfrow=c(2,2))
+MonBoxPlot(3)
+MonBoxPlot(4)
+MonBoxPlot(6)
+MonBoxPlot(12)
+mtext("Production variables",3,outer=TRUE,line=1,cex=1.0) 
+
+@
+
+<<fig=TRUE,echo=false, label=BoxVarsX2>>=
+
+par(omi=c(0,0,1,0) )                      #set the size of the outer margins 
+par(mfrow=c(2,2))
+MonBoxPlot(11)
+MonBoxPlot(5)
+MonBoxPlot(8)
+MonBoxPlot(7)
+mtext("Production variables (continued)",3,outer=TRUE,line=1,cex=1.0) 
+@
+
+
+<<fig=TRUE,echo=false, label=LinePlot>>=
+foo <- subset(data.all,select = c(Tyear, ETPyear, DELTAyear, annee, region), annee>1996 ) 
+data.year <- unique(foo)
+data.year <- data.year[order(data.year$annee),]
+
+#set parameters for this graph
+# Create Line Chart
+nc <- length(unique(data.year$region))
+Group <-unique(data.year$region)
+
+MonLinePlot  <- function(v, vname){
+  # get the range for the x and y axis 
+  xrange <- range(data.year[,4], finite=TRUE)  # annee
+  yrange <- range(data.year[,v], finite=TRUE)  # climatic variable
+  
+  plot(xrange, yrange, type="n",
+       xlab="Years",
+       ylab= vname, 
+       #title = "Temperature by regions"
+       ) 
+  colors <- rainbow(nc) 
+  linetype <- c(1:nc) 
+  #plotchar <- seq(18,18+nc,1)
+  
+  for (i in 1:nc) { 
+      foo <- subset(data.year, region== Group[i])
+      lines(foo[,4], foo[,v], type="b", lwd=1.5,
+      lty=linetype[i], col=colors[i]) 
+     } 
+}
+
+#set up the plot 
+par(omi=c(0,0,1,0) )  
+par(mfrow=c(2,2))    
+MonBoxPlot(7)  # Production
+MonLinePlot(1,"Tyear" )
+MonLinePlot(2,"ETPyear" )
+MonLinePlot(3,"DELTAyear" )
+
+mtext("Overview of production and climatic variabes over time by region",3,outer=TRUE,line=1,cex=1.0) 
+@
+
+
+<<echo=false,results=tex, label=LinRegAllYears>>=
+# Todo with a smaller sample
+#aggr(data.2006, delimiter = NULL, plot = TRUE)
+
+ 
+lin.all1 <- lm(formula = laitproduit~sau + sfp + eqvltotal + hasfpirri + charpot
+              + prixlaiteriemoyen + quotalait  +  concvlr + annee, data=data.all)
+
+ 
+lin.all2 <- lm(formula = laitproduit~sau +  eqvltotal + hasfpirri + charpot
+              + prixlaiteriemoyen + quotalait  +  concvlr
+               + Tyear + ETPyear + DELTAyear, data=data.all)
+ 
+lin.all3 <- lm(formula = laitproduit~sau  + eqvltotal + hasfpirri + charpot
+               + quotalait  +  concvlr
+              + Tyear  + DELTAyear  + factor(region), data=data.all)
+
+texreg(list(lin.all1, lin.all2, lin.all3),
+       stars = c(0.01, 0.05, 0.10), bold = 0.05, 
+       digit= 3, 
+       custom.model.names = c("Model prod", "Model prod+weather", "Parcimonious Model"),
+       caption = paste("First linear regressions all years")
+        )
+@
+
+
+\newpage
+\section{Focus on selected year }
+
+<<echo=false,results=hide, label=Data.year >>=
+data.work <- subset(data.all,  annee == year.red, 
+                      select = c(annee, ident, prixconcvlr, prixlaiteriemoyen,
+                                 laitproduit, sau, sfp, eqvltotal,
+                                 hasfpirri, charpot, quotalait, concvlr,
+                                 Tyear,ETPyear, DELTAyear, region) )
+
+ data.work <- data.work[complete.cases(data.work),]
+
+N <- nrow(data.work)
+  
+@
+
+The dataset for year \textbf{{\color{brique}\Sexpr{year.red}}} has {\color{navy}\Sexpr{nrow(data.work)}} observations.
+
+
+<<echo=false,results=tex, label=TableCont>>=
+
+Mycap <-paste("Descriptive statistics, (year", year.red,")")
+Mystats <-  list("n", "mean","s", "min", "max", "na")
+Mylab <- "Monlabel"
+Myvars<- with(data.work, data.frame( "Milk Prod. (1000 L)" = laitproduit,
+                                     "Total Land (ha)" = sau,
+                                     "sfp" = sfp, 
+                                     "Cows" = eqvltotal,
+                                     "Irrigated  Land (ha)" =  hasfpirri,
+                                     "Chargement apparent" = charpot,
+                                     "Price (mean at laiterie)" = prixlaiteriemoyen,
+                                     "Quota (at laiterie, 1000 L)" = quotalait, 
+                                     "Grain Consumed (kg per cow)" = concvlr,
+                                     "Temp (mean per year-region)" = Tyear,
+                                     "Etp (mean per year-region)" = ETPyear, 
+                                     "Hydric Stress (mean per year-region)" = DELTAyear)                                                                                                                          
+                                      )
+MyNames <- names(Myvars)
+
+tableContinuous(vars = Myvars, stats = Mystats, 
+                cap = Mycap,
+                nams = MyNames,
+                prec=2, lab = Mylab, longtable = FALSE)
+@
+\subsection{First naïve regressions}
+
+
+<<echo=false,results=tex, label=LinReg>>=
+# Todo with a smaller sample
+#aggr(data.2006, delimiter = NULL, plot = TRUE)
+
+ 
+lin.mod1 <- lm(formula = laitproduit~sau + sfp + eqvltotal + hasfpirri + charpot
+              + prixlaiteriemoyen + quotalait  +	concvlr, data=data.work)
+
+ 
+lin.mod2 <- lm(formula = laitproduit~sau  + eqvltotal + hasfpirri + charpot
+              + prixlaiteriemoyen + quotalait  +  concvlr
+               + Tyear + ETPyear + DELTAyear, data=data.work)
+ 
+lin.mod3 <- lm(formula = laitproduit~sau + eqvltotal + hasfpirri + charpot
+               + quotalait  +  concvlr
+              + Tyear +  DELTAyear  , data=data.work)
+
+texreg(list(lin.mod1, lin.mod2, lin.mod3),
+       stars = c(0.01, 0.05, 0.10), bold = 0.05,
+       digit=3,
+       custom.model.names = c("Model prod", "Model prod+weather", "Parcimonious Model"),
+       caption = paste("First linear regressions for year", year.red, ".")
+        )
+@
+
+
+<<echo=false,results=tex, label=NewModels>>=
+# Todo with a smaller sample
+
+detach(data.all)
+
+attach(data.work)
+
+laitprod.V <- laitproduit/eqvltotal
+sau.V <- sau/eqvltotal
+sfp.V <- sfp/eqvltotal
+hasfpirri.V <-  hasfpirri/eqvltotal
+charpot.V <-  charpot/eqvltotal
+
+data.work <- data.work[complete.cases(data.work),]
+
+
+lin.mod4 <- lm(formula = laitprod.V~sau.V + sfp.V + hasfpirri.V + charpot.V
+              + prixlaiteriemoyen + quotalait  +  concvlr, data=data.work)
+
+ 
+lin.mod5 <- lm(formula = laitprod.V~sau.V + sfp.V + hasfpirri.V + charpot.V
+              + prixlaiteriemoyen + quotalait  +  concvlr
+               + Tyear + ETPyear + DELTAyear, data=data.work)
+ 
+lin.mod6 <- lm(formula = laitprod.V~sau.V  + hasfpirri.V + charpot.V
+               + quotalait  +  concvlr
+              + Tyear +  DELTAyear  , data=data.work)
+
+
+      
+texreg(list(lin.mod4, lin.mod5, lin.mod6),
+       stars = c(0.01, 0.05, 0.10), bold = 0.05, 
+       digits = 3,
+       #custom.coef.names = c("const",as.character(MyNames)),
+       custom.model.names = c("Model prod", "Model prod+weather", "Parcimonious Model"),
+       caption = paste("Linear regressions with production and input variables divided by number of 
+                       cows (year", year.red, ").")
+        )
+
+@
+
+\clearpage
+
+\subsection{Visual regressions}
+
+In these graphs, the coefficients are represented in red if statiscally significant, and in blue if not. For clarity, Intercepts and "\textit{Charpot}" coefficients are omitted\\ 
+
+<<fig=TRUE,echo=false, results=hide, label=RegPlot>>=
+plotreg(list(lin.mod4, lin.mod5, lin.mod6),
+        omit.coef = "(Intercept)|(charpot)", 
+        mfrow= TRUE
+        ) 
+@
+
+%\clearpage
+<<fig=TRUE,echo=false, results=hide, label=CoefPlot>>=
+multiplot(lin.mod4, lin.mod5, lin.mod6)
+@
+
+%\newpage
+
+\section{Nonparametric regression}
+todo
+
+
+
+
+\end{document}\section
+
+
+
+
+%graph of firms over time (!!!TBC)
+% 
+% <<echo=FALSE,  fig=FALSE, label=FarmsOverTime >>=
+% data.graph <- subset(data.all, laitproduit > quantile(laitproduit,0.999 ))
+% 
+% # Create Line Chart
+% nc <- length(unique(data.graph$ident))
+% Firms <-unique(data.graph$ident)
+% 
+% # get the range for the x and y axis 
+% xrange <- range(data.graph$annee)
+% yrange <- range(data.graph$laitproduit, finite=TRUE) 
+% 
+% # set up the plot 
+% plot(xrange, yrange, type="n", xlab="Years",
+%      ylab="Y" ) 
+% colors <- rainbow(nc) 
+% linetype <- c(1:nc) 
+% plotchar <- seq(18,18+nc,1)
+% 
+% # add lines 
+% for (i in 1:nc) { 
+%     foo <- subset(data.graph, ident== Firms[i])  
+%     lines(foo$annee, foo$laitproduit, type="b", lwd=1.5,
+%     lty=linetype[i], col=colors[i]) 
+%     text(x=(max(foo$year,na.rm=TRUE)-1), y=max(foo$Y,na.rm=TRUE ), pos=4, labels=Firms[i],col="red" )#col=colors[i])
+% } 
+% 
+% # add a title and subtitle 
+% title("Dairy Farms production   (x1000 l) over time", 
+%       sub=paste("We have ",nc," distinct farms on this graph for",
+%                 length(unique(data.graph$annee)),"years)"))
+% 
+% # add a legend 
+% #legend(xrange[1], yrange[2], Car[1:nc], cex=0.8, col=colors,
+% #    pch=plotchar, lty=linetype, title="Carriers", horiz=FALSE)
+% 
+% @
+
