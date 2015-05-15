@@ -14,10 +14,15 @@ silverman.bw <- function(x){
 }
 
 ## Fonction de calcul ds l'AR , theta1, etc...
-### New version  : f(x, Z) , g(x)  x= factors,  z = weather factors...
-NpAversion2 <- function(year, 
+## 10/05/2015  : New version  : f(x, Z) , g(x)  x= factors,  z = weather factors...
+##             :  Correction computing theta (denominator)
+## 15/05/2015  : Adapted to parallel tratment
+##             : Correction : computing g with abs(ei) on same regressors. 
+NpAversion3 <- function(year, 
                        bwmethod = "CV",
                        bwcompute = "FALSE",
+                       datafich = data.all,
+                       ampli =1,
                        ...
 ) 
 {
@@ -28,12 +33,13 @@ NpAversion2 <- function(year,
 #############################
   
   # We take observations for the considered year 
-  data.work <- subset(data.all, annee == year, 
+  data.work <- subset(datafich,  annee == year, 
                       select = c(annee, ident, prixconcvlr, prixlaiteriemoyen,
                                  laitproduit, sau, sfp, eqvltotal,
                                  hasfpirri, charpot, quotalait, concvlr,
                                  Tyear,ETPyear, DELTAyear) )
   N <- nrow(data.work)
+  print(N)
   # we need to restrict the dataframe to complete observations
   
   data.work <- data.work[complete.cases(data.work),]
@@ -45,7 +51,7 @@ NpAversion2 <- function(year,
 #             data.work <- data.work[ii[1:S],]                # <<<<< ===== random sample from original file
 #             
 #       
-#       #############
+# #       #############
   attach(data.work)
   X <- data.frame(data.work$sau, 
                   data.work$sfp,
@@ -69,7 +75,9 @@ NpAversion2 <- function(year,
   if(bwmethod == "CV"){
     if(bwcompute != "TRUE") {
       # 11/05/2015  we load the cross-validated bandwidths
-      load (paste("Results/CV/bw.f.",year,".RData", sep=""))
+      #load (paste("Results/CV/bw.f.",year,".RData", sep=""))
+      load(paste("Results/bw.f.",bwmethod,".",year,".RData", sep=""))
+      
     }
     if(bwcompute == "TRUE") {
       bw.f <- npregbw(ydat = data.work$laitproduit, 
@@ -113,7 +121,7 @@ NpAversion2 <- function(year,
     bw.silver.f <-  apply(W, 2, silverman.bw)
     
     # A déterminer si on modifie la fenêtre de Silverman ... (ici x 2) 
-     bw.silver.f <- 6*bw.silver.f  ### <<<<<<<------- ACHTUNG A MODIFIER  #####
+     bw.silver.f <- ampli*bw.silver.f  ### <<<<<<<------- amplificateur  #####
     
     # Calcul de l'objet "bandwidth"
     
@@ -137,7 +145,7 @@ NpAversion2 <- function(year,
   tac  <- proc.time()
   duree.bw <-tac-tic
   
-  save(bw.f, duree.bw,  file = paste("Results/bw.f.",year,".RData", sep=""))
+  save(bw.f, duree.bw,  file = paste("Results/bw.f.",bwmethod,".",year,".RData", sep=""))
   
   # npplot(bw.f,  plot.errors.method="bootstrap")
   ##  Np estimation of f  (need to integrate to data.work)  
@@ -159,19 +167,21 @@ NpAversion2 <- function(year,
   
   
   ## Step 2 -- Computing g
-  # Residuals
-  e.f <- f.np$resid
+  # Residuals valeur absolue ou pas ????
+  # e.f <- abs(f.np$resid)
+  e.f <-f.np$resid
+
   
   # -- Computing bw for g  (same variable than for f )
   if(bwmethod == "CV") {
     if(bwcompute != "TRUE") {
       # 11/05/2015  we load the cross-validated bandwidths
-      load (paste("Results/CV/bw.g.",year,".RData", sep=""))
+      load (paste("Results/bw.g.",bwmethod,".",year,".RData", sep=""))
     }
     if(bwcompute == "TRUE") {
       
       bw.g <- npregbw(ydat = e.f, 
-                      xdat = X,  
+                      xdat = W,  
                       regtype = "ll",
                       bwmethod = "cv.aic",
                       ckertype = "epanechnikov",
@@ -194,7 +204,7 @@ NpAversion2 <- function(year,
     # Calcul de l'objet "bandwidth"
     
     bw.g <- npregbw(ydat = e.f, 
-                     xdat = X,    
+                     xdat = W,    
                     regtype = "ll",
                     bw <- bw.fixed.g,
                     bandwidth.compute=FALSE,  
@@ -207,14 +217,14 @@ NpAversion2 <- function(year,
   
   if(bwmethod == "SILVERMAN") {
     
-    bw.silver.g <-  apply(X, 2, silverman.bw)
+    bw.silver.g <-  apply(W, 2, silverman.bw)
     # A déterminer si on modifie la fenêtre de Silverman ... (ici x 2) 
-    bw.silver.g <- 6*bw.silver.g  ### <<<<<<<------- ACHTUNG A MODIFIER  #####
+    bw.silver.g <- 2*bw.silver.g  ### <<<<<<<------- ACHTUNG A MODIFIER  #####
     
     # Calcul de l'objet "bandwidth"
     
     bw.g <- npregbw(ydat = e.f, 
-                    xdat = X,         
+                    xdat = W,         
                     regtype = "ll",
                     bws = bw.silver.g,
                     bandwidth.compute=FALSE,  
@@ -232,7 +242,7 @@ NpAversion2 <- function(year,
   print(summary(bw.g))
   tac  <- proc.time()
   duree.bw <-tac-tic
-  save(bw.g, duree.bw, file = paste("Results/bw.g.",year,".RData", sep=""))
+  save(bw.g, duree.bw, file = paste("Results/bw.g.",bwmethod,".",year,".RData", sep=""))
   
   
   ##  Np estimation of f 
@@ -242,7 +252,7 @@ NpAversion2 <- function(year,
                  residuals = TRUE )
   # summary(g.np)
   
-  save(bw.f, bw.g, f.np, g.np,  file = paste("Results/np.",bwmethod,"Y",year,".RData", sep=""))
+  save(bw.f, bw.g, f.np, g.np,  file = paste("Results/np.",bwmethod,".",year,".RData", sep=""))
   
   # Step 3 -- Variance estimation 
   
@@ -292,7 +302,7 @@ NpAversion2 <- function(year,
   w2 <- 15 
   theta2 <-  -(f2.np - (w2/p))/g2.np
   
-  # computing tetha 
+  # computing theta 
   theta <- (theta1  + theta2) /2
   
   # Computing AR !! 
