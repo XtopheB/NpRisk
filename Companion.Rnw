@@ -36,6 +36,7 @@
 \maketitle
 \date
 
+
 <<echo=false,results=hide, label=packages>>=
 ## Start 
 rm(list=ls())
@@ -55,7 +56,7 @@ library(coefplot)
 library(reporttools)
 library(ggplot2)
 library(grid)
-
+library(KernSmooth)
 options(np.messages=FALSE)
 
 RVersion <- R.version.string
@@ -69,6 +70,8 @@ npVersion <- packageVersion("np")
 ## DATA 
 # File already merged with weather data
 data.all <- read.dta("data/OptilaitMerge.dta")   # All years 
+# On cylindre data.all 
+data.all <- data.all[complete.cases(data.all),]
 attach(data.all)
 @
 
@@ -80,7 +83,7 @@ yearlist<- c("1996", "1997", "1998", "1999", "2000", "2001", "2002", "2003", "20
 #yearlist<- c( "1999", "2001",  "2003",  "2005")
 
 # Marking special year (2003)
-year.red <- 2003
+year.red <- 2001
 
 # For graphs 
 color.list  <- rep(0,length(yearlist))   # list of zeros
@@ -91,12 +94,16 @@ color.year <- as.factor((annee != year.red))
 
 @
 
+\begin{center}
+\huge{Focus on {\color{brique}{\Sexpr{year.red}}} !}
+\end{center}
+
 \clearpage
 
 
 \section{Data}
 
-The dataset has {\color{DarkBlue}\Sexpr{nrow(data.all)}} observations and is composed of production variables merged at the pedoclimatic region level with climatic information, nammely temperature (T), evapotranspiration (ETP) and hydric stress (DELTA).\footnote{The Hydric stress (DELTAyear) is defined as the différence between precipitation and  evapotranspiration.}   
+The dataset has {\color{DarkBlue}\Sexpr{nrow(data.all)}} observations and is composed of production variables merged at the pedoclimatic region level with climatic information, nammely temperature (T), evapotranspiration (ETP) and hydric stress (DELTA).\footnote{The Hydric stress (DELTAyear) is defined as the diff?rence between precipitation and  evapotranspiration.}   
 
 <<echo=false,results=hide, label=PlotFunction >>=
 MonBoxPlot <- function(x){  # With automatic year tag
@@ -192,8 +199,11 @@ MonLinePlot(3,"DELTAyear" )
 mtext("Overview of production and climatic variabes over time by region",3,outer=TRUE,line=1,cex=1.0) 
 @
 
+\section{Production function regression on the whole sample}
 
-<<echo=false,results=tex, label=LinRegAllYears>>=
+In Table \ref{LinRegAll}, we report linear regression estimations of the fucntion $f()$ on the whole set of explanatory variables $X$ and $Z$ for all years (N = \Sexpr{nrow(data.all)}).
+
+<<echo=false,results=tex, label=LinRegAll>>=
 # Todo with a smaller sample
 #aggr(data.2006, delimiter = NULL, plot = TRUE)
 
@@ -207,13 +217,14 @@ lin.all2 <- lm(formula = laitproduit~sau +  eqvltotal + hasfpirri + charpot
                + Tyear + ETPyear + DELTAyear, data=data.all)
  
 lin.all3 <- lm(formula = laitproduit~sau  + eqvltotal + hasfpirri + charpot
-               + quotalait  +  concvlr
+               + quotalait  +  concvlr + annee
               + Tyear  + DELTAyear  + factor(region), data=data.all)
 
 texreg(list(lin.all1, lin.all2, lin.all3),
        stars = c(0.01, 0.05, 0.10), bold = 0.05, 
        digit= 3, 
        custom.model.names = c("Model prod", "Model prod+weather", "Parcimonious Model"),
+       label = "LinRegAll", 
        caption = paste("First linear regressions all years")
         )
 @
@@ -235,14 +246,14 @@ N <- nrow(data.work)
   
 @
 
-The dataset for year \textbf{{\color{brique}\Sexpr{year.red}}} has {\color{navy}\Sexpr{nrow(data.work)}} observations.
+The dataset for year \textbf{{\color{brique}\Sexpr{year.red}}} has {\color{navy}\Sexpr{nrow(data.work)}} observations. We report some descriptive statistics in Table \ref{StatYear}.
 
 
-<<echo=false,results=tex, label=TableCont>>=
+<<echo=false,results=tex, label=StatYear>>=
 
 Mycap <-paste("Descriptive statistics, (year", year.red,")")
-Mystats <-  list("n", "mean","s", "min", "max", "na")
-Mylab <- "Monlabel"
+Mystats <-  list( "mean","s", "min", "max", "n")
+Mylab <- "StatYear"
 Myvars<- with(data.work, data.frame( "Milk Prod. (1000 L)" = laitproduit,
                                      "Total Land (ha)" = sau,
                                      "sfp" = sfp, 
@@ -260,21 +271,19 @@ MyNames <- names(Myvars)
 
 tableContinuous(vars = Myvars, stats = Mystats, 
                 cap = Mycap,
+                lab =  Mylab,
                 nams = MyNames,
-                prec=2, lab = Mylab, longtable = FALSE)
+                prec=2, 
+                longtable = FALSE)
 @
-\subsection{First naïve regressions}
+\subsection{Parametric regressions}
+The results of some first linear regression model are reported in Table \ref{LinRegYear}. In order to check if the "size" effect was not dominating these regressions, we ran similar estimation with output and  input variables divided by the numbers of cows. The results in Table \ref{LinRegYearCows} 
 
+<<echo=false,results=tex, label=LinRegYear>>=
 
-<<echo=false,results=tex, label=LinReg>>=
-# Todo with a smaller sample
-#aggr(data.2006, delimiter = NULL, plot = TRUE)
-
- 
 lin.mod1 <- lm(formula = laitproduit~sau + sfp + eqvltotal + hasfpirri + charpot
               + prixlaiteriemoyen + quotalait  +	concvlr, data=data.work)
 
- 
 lin.mod2 <- lm(formula = laitproduit~sau  + eqvltotal + hasfpirri + charpot
               + prixlaiteriemoyen + quotalait  +  concvlr
                + Tyear + ETPyear + DELTAyear, data=data.work)
@@ -287,12 +296,13 @@ texreg(list(lin.mod1, lin.mod2, lin.mod3),
        stars = c(0.01, 0.05, 0.10), bold = 0.05,
        digit=3,
        custom.model.names = c("Model prod", "Model prod+weather", "Parcimonious Model"),
+       label = "LinRegYear",
        caption = paste("First linear regressions for year", year.red, ".")
         )
 @
 
 
-<<echo=false,results=tex, label=NewModels>>=
+<<echo=false,results=tex, label=LinRegYearCows>>=
 # Todo with a smaller sample
 
 detach(data.all)
@@ -327,6 +337,7 @@ texreg(list(lin.mod4, lin.mod5, lin.mod6),
        digits = 3,
        #custom.coef.names = c("const",as.character(MyNames)),
        custom.model.names = c("Model prod", "Model prod+weather", "Parcimonious Model"),
+       label = "LinRegYearCows",
        caption = paste("Linear regressions with production and input variables divided by number of 
                        cows (year", year.red, ").")
         )
@@ -337,7 +348,7 @@ texreg(list(lin.mod4, lin.mod5, lin.mod6),
 
 \subsection{Visual regressions}
 
-In these graphs, the coefficients are represented in red if statiscally significant, and in blue if not. For clarity, Intercepts and "\textit{Charpot}" coefficients are omitted\\ 
+We sizualize in these graphs, the coefficients corresponding to models presented in Table \ref{LinRegYearCows} which are represented in red if statiscally significant, and in blue if not. For clarity, \textit{Intercepts} and \textit{Charpot} coefficients are omitted.\\ 
 
 <<fig=TRUE,echo=false, results=hide, label=RegPlot>>=
 plotreg(list(lin.mod4, lin.mod5, lin.mod6),
@@ -353,13 +364,268 @@ multiplot(lin.mod4, lin.mod5, lin.mod6)
 
 %\newpage
 
-\section{Nonparametric regression}
-todo
+\section{Nonparametric estimation}
+
+<<echo=false,results=hide, label=parametersNP>>=
+# loading the functions
+source("Progs/NpRiskFunctions.R")
+
+#NpMethod <- "SILVERMAN"
+NpMethod <- "CV"
+
+#Param?tre multiplicatif des fen?tre 
+ampli.Silver <- 1
+
+#Number of bootstraps for the  test : ref Li, Maasoumi et Racine (2009)
+Nboot<-399
+
+@
+
+<<echo=false,results=hide, label=NpReg>>=
+
+risk.year <- NpAversion3(year.red,  
+                          bwmethod = NpMethod,
+                          ampli = ampli.Silver, 
+                          bwcompute= "TRUE",
+                          datafich = data.all)
+@
+
+<<echo=false,results=verbatim, label=NpResults>>=
+# Loading the models estimates and bandwidths 
+#load(paste("Results/np.",NpMethod,".",year.red,".RData", sep=""))
+summary(bw.f)
+@
+
+
+\begin{figure}[!ht]
+<<fig=TRUE,echo=false, results=hide, label=NpRegPlot>>=
+
+plot(bw.f,
+     plot.errors.method="bootstrap",
+     plot.errors.boot.num=25,common.scale=FALSE)
+
+# 
+# #Aternative way of doing that 
+# # http://www.inside-r.org/packages/cran/np/docs/npplot 
+# 
+# plot.out <- plot(bw.f,
+#      plot.errors.method="bootstrap",
+#      plot.errors.boot.num=25,common.scale=FALSE, 
+#      plot.behavior="plot-data")
+# 
+# # Now grab the r1 object that npplot plotted on the screen, and take
+# # what you need. First, take the output, lower error bound and upper
+# # error bound...
+#  
+# y.eval <- fitted(plot.out$r1)
+# y.se <- se(plot.out$r1)
+# y.lower.ci <- y.eval + y.se[,1]
+# y.upper.ci <- y.eval + y.se[,2]
+#  
+# # Next grab the x data evaluation data. xdat is a data.frame(), so we
+# # need to coerce it into a vector (take the `first column' of data frame
+# # even though there is only one column)
+#  
+# x.eval <- plot.out$r1$eval[,2]
+#  
+# # Now we could plot this if we wished, or direct it to whatever end use
+# # we envisioned. We plot the results using R's plot() routines...
+#  
+# plot(y, x,cex=0.2,
+#      ylab="Y")
+# plot(x.eval,y.eval, lty=1)
+# lines(x.eval,y.lower.ci,lty=3)
+# lines(x.eval,y.upper.ci,lty=3)
+
+@
+\caption{Partial local linear nonparametric regression plots for the function $f()$ on the dairy farm production set for the  year \Sexpr{year.red} }
+\end{figure}
+
+
+<<echo=false,results=hide, label=NpSigTests>>=
+np.f.sig <- npsigtest(bw.f, boot.num = Nboot)
+
+save(np.f.sig,  file = paste("Results/sig.f.",NpMethod,".",year.red,".RData", sep=""))
+
+@
+
+\subsection{Testing the significance of the production function}
+<<echo=false,results=verbatim, label=NpSigTestsResults, tidy=TRUE>>=
+#load(paste("Results/sig.f.",NpMethod,".",year.red,".RData", sep=""))
+summary(np.f.sig)
+@ 
+
+\subsection{Checking the constrains on the production function $f()$:}
+
+One idea would be to estimate this production function under shape constrains (see Du, Parmeter and Racine (2013), "Nonparametric Kernel Regression with Multiple Predictors and Multiple Shape Constraints", (Statistica Sinica) ).
+
+<<echo=false,results=tex, label=Grad1year>>=
+
+Mycap <-paste("Distribution of f's derivatives wrt to inputs, (year", year.red,")")
+Mystats <-  list( "mean","s",  "min", "q1", "median", "q3",  "max", "n")
+Mylab <- "Grad1year"
+Myvars1 <- with(f.np, data.frame( "wrt :Total Land (ha)" = f.np$grad[,1],
+                                "wrt :Cows" = f.np$grad[,3],
+                                "wrt :Irrigated  Land (ha)" =  f.np$grad[,4],
+                                "wrt :Chargement apparent" = f.np$grad[,5],
+                                "wrt :Grain Consumed (kg per cow)" = f.np$grad[,7]                          
+                                 )
+              )                                                                                                                
+MyNames <- names(Myvars1)
+
+tableContinuous(vars = Myvars1, stats = Mystats, 
+                cap = Mycap,
+                lab =  Mylab,
+                nams = MyNames,
+                prec=2, 
+                longtable = FALSE)
+@
+
+
+<<fig=TRUE, echo=false, results=hide, label=GradF1plot>>=
+
+# Defining the gradients to check 
+
+f1.sau.hat <- bkde(f.np$grad[,1], kernel = "normal")
+f1.cows.hat <- bkde(f.np$grad[,3], kernel = "normal")
+f1.grain.hat <- bkde(f.np$grad[,7], kernel = "normal")
+
+par(omi=c(0,0,1,0) )                      #set the size of the outer margins 
+par(mfrow=c(3,1))    
+plot(f1.sau.hat, type="l", col="blue") 
+abline(v=0, col= "red")
+plot(f1.cows.hat, type="l", col="blue")
+abline(v=0, col= "red")
+plot(f1.grain.hat, type="l", col="blue")
+abline(v=0, col= "red")
 
 
 
 
-\end{document}\section
+mtext("Distribution of f's derivatives ",3,outer=TRUE,line=1,cex=1.0) 
+
+
+@
+
+\section{Risk aversion estimation}
+
+
+<<echo=false, label=ComputingAR>>=
+
+# Computing theata , AR, etc (as in NpRiskFunctions)
+
+e.f <-f.np$resid
+e2 <- e.f^2
+  
+bw.sigma <- npregbw(e2~ sau + sfp + eqvltotal + hasfpirri + charpot
+                      + quotalait  +  concvlr
+                      + Tyear + ETPyear + DELTAyear,  
+                    bandwidth.compute=FALSE, 
+                    bws = bw.f$bw,
+                    data = data.work)
+  
+  sigma2 <- npreg(bws = bw.sigma,
+                  data = data.work)
+  
+  sigma2.fit <- fitted(sigma2)
+  
+  #### computing  theta's  ###
+  
+  # step 4 --  derivative of f and  g 
+  
+  f1.np <- f.np$grad[, 7]  # <<<- correspond to  concvlr
+  g1.np <- g.np$grad[, 7]  # <<<- correspond to  concvlr
+  
+  f2.np <- f.np$grad[, 7]  # <<<- A MODIFIER !!!!!
+  g2.np <- g.np$grad[, 7]  # <<<- A MODIFIER !!!!!
+  
+  # Step 4 -- computing theta1 
+  w1 <- prixconcvlr
+  p <-  prixlaiteriemoyen
+  theta1 <-  -(f1.np - (w1/p))/g1.np
+  
+  #       --- computing theta2
+  # ordre de grandeur pour le coût marginal de l'irrigation : environ 15 euros par hectare 
+  # c'est une info moyenne pour la campagne 2010 pour la région du sud-ouest.
+  
+  w2 <- 15 
+  theta2 <-  -(f2.np - (w2/p))/g2.np
+  
+  # computing theta 
+  theta <- (theta1  + theta2) /2
+  
+  # Computing AR !! 
+  sigma <- sqrt(sigma2.fit)
+  
+  AR <-  - theta/sigma
+@
+
+<<echo=false,results=tex, label=TableResults>>=
+toto <- as.data.frame(c(AR, theta1))
+Mycap <-paste("Distribution of Theta and R , (year", year.red,")")
+
+Mystats <-  list("min", "p10" = function(x){return(quantile(x, 0.1))},
+                 "q1",  "median", "q3", 
+                 "p90" = function(x){return(quantile(x, 0.9))}, 
+                 "max", "n")
+
+
+Mylab <- "TableResults"
+Myvars <- with(toto, data.frame("Theta1" = theta1, 
+                                "AR" = AR
+                                 ))
+                                                                                                                              
+tableContinuous(vars = Myvars,
+                stats = Mystats, 
+                cap = Mycap,
+                lab =  Mylab,
+                prec=2, 
+                longtable = FALSE)
+
+@
+
+
+
+<<echo=false,fig=TRUE, label=PlotResults>>=
+
+# theta1.tmp <- na.omit(theta1)    # rm missing values  
+theta1.tmp <-theta1[which(theta1!= -Inf)]    # rm infinite values  
+theta1.hat <- bkde(theta1.tmp, kernel = "normal",  
+                   range.x = c(quantile(theta1, 0.01), quantile(theta1, 0.99)))
+
+
+
+AR.tmp <-AR[which(AR!= -Inf  & AR!= Inf )]    # rm infinite values  
+AR.tmp <- na.omit(AR.tmp)  
+AR.hat <- bkde(AR.tmp, kernel = "normal",
+               range.x =c(quantile(AR.tmp, 0.01), quantile(AR.tmp, 0.99) ))
+
+
+IQR10.theta1 <- c(quantile(theta1.tmp, 0.1), quantile(theta1.tmp, 0.9))
+IQR10.AR <- c(quantile(AR.tmp, 0.1), quantile(AR.tmp, 0.9))
+
+
+#op <- par(omi=c(0,0,1,0) )                      #set the size of the outer margins 
+op <- par()
+par(mfrow=c(2,1))    
+plot(theta1.hat, type="l", col="blue",
+     xlab = "Theta1", 
+     ylab = "density")
+rug(theta1, col="grey")
+abline(v=0, col= "red")
+abline(v=IQR10.theta1, col= "grey")
+
+plot(AR.hat, type="l", col="blue",
+     xlab = "AR", 
+     ylab = "density")
+abline(v=0, col= "red")
+abline(v=IQR10.AR, col= "grey")
+rug(AR, col="grey")
+
+par(op)
+@
+
+\end{document}
 
 
 
