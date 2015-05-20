@@ -40,8 +40,9 @@
 <<echo=false,results=hide, label=packages>>=
 ## Start 
 rm(list=ls())
-#setwd("C:/Chris/progs/Optilait")   
-setwd("D:/progs/Optilait")
+Myroot <- "D:/progs/Optilait/"
+#Myroot  <- "C:/Chris/progs/Optilait/"   
+setwd(Myroot)
 
 ## libraries
 
@@ -69,7 +70,7 @@ npVersion <- packageVersion("np")
 <<echo=false,results=hide, label=data>>=
 ## DATA 
 # File already merged with weather data
-data.all <- read.dta("data/OptilaitMerge.dta")   # All years 
+data.all <- read.dta(paste(Myroot,"data/OptilaitMerge.dta", sep=""))    # All years 
 # On cylindre data.all 
 data.all <- data.all[complete.cases(data.all),]
 attach(data.all)
@@ -103,7 +104,7 @@ color.year <- as.factor((annee != year.red))
 
 \section{Data}
 
-The dataset has {\color{DarkBlue}\Sexpr{nrow(data.all)}} observations and is composed of production variables merged at the pedoclimatic region level with climatic information, nammely temperature (T), evapotranspiration (ETP) and hydric stress (DELTA).\footnote{The Hydric stress (DELTAyear) is defined as the diff?rence between precipitation and  evapotranspiration.}   
+The dataset has {\color{DarkBlue}\Sexpr{nrow(data.all)}} observations and is composed of production variables merged at the pedoclimatic region level with climatic information, nammely temperature (T), evapotranspiration (ETP) and hydric stress (DELTA).\footnote{The Hydric stress (DELTAyear) is defined as the difference between precipitation and  evapotranspiration.}   
 
 <<echo=false,results=hide, label=PlotFunction >>=
 MonBoxPlot <- function(x){  # With automatic year tag
@@ -368,12 +369,12 @@ multiplot(lin.mod4, lin.mod5, lin.mod6)
 
 <<echo=false,results=hide, label=parametersNP>>=
 # loading the functions
-source("Progs/NpRiskFunctions.R")
+source(paste(Myroot,"Progs/NpRiskFunctions.R", sep="")) 
 
 #NpMethod <- "SILVERMAN"
 NpMethod <- "CV"
 
-#Param?tre multiplicatif des fen?tre 
+#Parametre multiplicatif des fenetre 
 ampli.Silver <- 1
 
 #Number of bootstraps for the  test : ref Li, Maasoumi et Racine (2009)
@@ -392,7 +393,7 @@ risk.year <- NpAversion3(year.red,
 
 <<echo=false,results=verbatim, label=NpResults>>=
 # Loading the models estimates and bandwidths 
-#load(paste("Results/np.",NpMethod,".",year.red,".RData", sep=""))
+load(paste(Myroot,"Results/np.",NpMethod,".",year.red,".RData", sep=""))
 summary(bw.f)
 @
 
@@ -445,13 +446,13 @@ plot(bw.f,
 <<echo=false,results=hide, label=NpSigTests>>=
 np.f.sig <- npsigtest(bw.f, boot.num = Nboot)
 
-save(np.f.sig,  file = paste("Results/sig.f.",NpMethod,".",year.red,".RData", sep=""))
+save(np.f.sig,  file = paste(Myroot,"Results/sig.f.",NpMethod,".",year.red,".RData", sep=""))
 
 @
 
 \subsection{Testing the significance of the production function}
 <<echo=false,results=verbatim, label=NpSigTestsResults, tidy=TRUE>>=
-#load(paste("Results/sig.f.",NpMethod,".",year.red,".RData", sep=""))
+load(paste(Myroot,"Results/sig.f.",NpMethod,".",year.red,".RData", sep=""))
 summary(np.f.sig)
 @ 
 
@@ -500,10 +501,7 @@ plot(f1.grain.hat, type="l", col="blue")
 abline(v=0, col= "red")
 
 
-
-
 mtext("Distribution of f's derivatives ",3,outer=TRUE,line=1,cex=1.0) 
-
 
 @
 
@@ -513,7 +511,6 @@ mtext("Distribution of f's derivatives ",3,outer=TRUE,line=1,cex=1.0)
 <<echo=false, label=ComputingAR>>=
 
 # Computing theata , AR, etc (as in NpRiskFunctions)
-
 e.f <-f.np$resid
 e2 <- e.f^2
   
@@ -585,14 +582,12 @@ tableContinuous(vars = Myvars,
 @
 
 
-
 <<echo=false,fig=TRUE, label=PlotResults>>=
 
 # theta1.tmp <- na.omit(theta1)    # rm missing values  
-theta1.tmp <-theta1[which(theta1!= -Inf)]    # rm infinite values  
+theta1.tmp <-theta1[which(theta1 != -Inf & theta1 != Inf )]    # rm infinite values  
 theta1.hat <- bkde(theta1.tmp, kernel = "normal",  
                    range.x = c(quantile(theta1, 0.01), quantile(theta1, 0.99)))
-
 
 
 AR.tmp <-AR[which(AR!= -Inf  & AR!= Inf )]    # rm infinite values  
@@ -603,7 +598,6 @@ AR.hat <- bkde(AR.tmp, kernel = "normal",
 
 IQR10.theta1 <- c(quantile(theta1.tmp, 0.1), quantile(theta1.tmp, 0.9))
 IQR10.AR <- c(quantile(AR.tmp, 0.1), quantile(AR.tmp, 0.9))
-
 
 #op <- par(omi=c(0,0,1,0) )                      #set the size of the outer margins 
 op <- par()
@@ -624,6 +618,33 @@ rug(AR, col="grey")
 
 par(op)
 @
+
+<<echo=false,fig=TRUE, label=PlotResults2>>=
+op <- par()
+par(mfrow=c(2,1))    
+
+boxplot(theta1.tmp, horizontal=TRUE, 
+        range= 1.5, outline = FALSE, 
+        col="lightblue",
+        main ="", 
+        sub = paste("theta1, (median =",round(median(theta1.tmp),3),")")
+        )
+abline(v=0, col= "red")
+
+boxplot(AR.tmp, horizontal=TRUE, 
+        range= 1.5, outline = FALSE,
+        col="lightblue",
+        main ="",
+        sub = paste("AR, (median =",round(median(AR.tmp),3),")")
+        )
+
+abline(v=0, col= "red")
+
+par(op)
+
+@
+
+
 
 \end{document}
 
