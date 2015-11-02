@@ -1,0 +1,312 @@
+% Template file for an a0 portrait poster.
+% Written by Graeme, 2001-03 based on his SOC poster.
+%
+% See discussion and documentation at
+% <http://www.astro.gla.ac.uk/users/norman/docs/posters/>
+%
+% $Id: poster-template-portrait.tex,v 1.2 2002/12/03 11:25:55 norman Exp $
+
+
+
+% We switch to portrait mode. This works as advertised.
+\documentclass[a0,landscape]{a0poster}
+% You might find the 'draft' option to a0 poster useful if you havei
+% lots of graphics, because they can take some time to process and
+% display. (\documentclass[a0,draft]{a0poster})
+
+% Switch off page numbers on a poster, obviously, and section numbers too.
+\pagestyle{empty}
+\setcounter{secnumdepth}{0}
+
+% The textpos package is necessary to position textblocks at arbitary
+% places on the page.
+\usepackage[absolute]{textpos}
+
+% Graphics to include graphics. Times is nice on posters, but you
+% might want to switch it off and go for CMR fonts.
+\usepackage{graphics,graphicx,wrapfig,times, subfig}
+
+\usepackage[T1]{fontenc}  % French
+\usepackage{harvard}
+\usepackage{amsmath,amsfonts,amssymb}
+%\usepackage{gensymb}  %  for degree symbol
+\usepackage{fancybox}
+% These colours are tried and tested for titles and headers. Don't
+% over use color!
+\usepackage{framed, color}
+\definecolor{DarkBlue}{rgb}{0.1,0.1,0.5}
+\definecolor{Red}{rgb}{0.9,0.0,0.1}
+\definecolor{vert}{rgb}{0.1,0.7,0.2}
+\definecolor{brique}{rgb}{0.7,0.16,0.16}
+\definecolor{blue}{rgb}{0.36, 0.54, 0.66}  % airforceblue
+\definecolor{navy}{rgb}{0.0, 0.0, 0.5}        % navyblue
+
+\definecolor{MonStabilo}{rgb}{0.1,0.1,0.5}   % même def que darkblue, mais pour highlight de mots clés
+\definecolor{asparagus}{rgb}{0.53, 0.66, 0.42}
+
+
+% see documentation for a0poster class for the size options here
+\let\Textsize\normalsize
+\def\Head#1{\noindent\hbox to \hsize{\hfil{\LARGE\color{DarkBlue} #1}}\bigskip}
+\def\LHead#1{\noindent{\LARGE\color{DarkBlue} #1}\smallskip}
+\def\Subhead#1{\noindent{\large\color{DarkBlue} #1}}
+\def\Title#1{\noindent{\VeryHuge\color{brique} #1}}
+
+% Set up the grid
+%
+% Note that [40mm,40mm] is the margin round the edge of the page --
+% it is _not_ the grid size. That is always defined as
+% PAGE_WIDTH/HGRID and PAGE_HEIGHT/VGRID. In this case we use
+% 15 x 25. This gives us a wide central column for text (7 grid
+% spacings) and two narrow columns (3 each) at each side for
+% pictures, separated by 1 grid spacing.
+%
+% Note however that texblocks can be positioned fractionally as well,
+% so really any convenient grid size can be used.
+%
+\TPGrid[40mm,40mm]{15}{25}  % 3 - 1 - 7 - 1 - 3 Columns
+
+% Mess with these as you like
+\parindent=0pt
+%\parindent=1cm
+\parskip=0.5\baselineskip
+
+% abbreviations
+\newcommand{\ddd}{\,\mathrm{d}}
+
+\begin{document}
+
+% Understanding textblocks is the key to being able to do a poster in
+% LaTeX. In
+%
+%    \begin{textblock}{wid}(x,y)
+%    ...
+%    \end{textblock}
+%
+% the first argument gives the block width in units of the grid
+% cells specified above in \TPGrid; the second gives the (x,y)
+% position on the grid, with the y axis pointing down.
+
+% You will have to do a lot of previewing to get everything in the
+% right place.
+
+% This gives good title positioning for a portrait poster.
+% Watch out for hyphenation in titles - LaTeX will do it
+% but it looks awful.
+
+\begin{textblock}{15}(0,0)
+\baselineskip=3\baselineskip
+\begin{center}
+\Title{The effects of extreme climatic events on dairy farmers' risk preferences:\\
+A nonparametric approach}
+\end{center}
+\end{textblock}
+
+\begin{textblock}{15}(0,2.5)
+\begin{center}
+\LHead{\textbf{Christophe Bontemps} \& Stéphane Couture}\\
+\Large{\textit{Toulouse School of Economics (INRA) \& INRA-MIAT-Toulouse}}
+\end{center}
+\end{textblock}
+
+% Put the GU logo in the top right.i
+\begin{textblock}{5}(2.5,1.4)
+%\includegraphics[height=50mm]{Graphics/LogoTSE.jpg}
+\includegraphics[height=90mm]{Graphics/TSE2.pdf}
+\end{textblock}
+
+
+\begin{textblock}{1.5}(0,2)
+{\color{asparagus}
+\textit{This work was funded through the project FARMATCH within 
+the Metaprogramme INRA-ACCAF}}
+\end{textblock}
+
+
+\begin{textblock}{5}(12,1.8)
+\includegraphics[height=40mm]{Graphics/MIA_logo.png} \hspace{1cm} \includegraphics[height=40mm]{Graphics/Logotype-INRA_medium.jpg}
+
+\end{textblock}
+
+% First column
+\begin{textblock}{4.5}(0,4.5)
+
+ \LHead{Motivation}
+
+Climate change is likely to increase average daily temperatures and the frequency of heat waves, which can reduce meat and milk production (Key and Sneeringer 2014)
+
+\begin{figure}[!h]
+\centering
+\includegraphics[height=80mm]{Graphics/TempOverTime.pdf}
+\caption{Average temperature (C) between 1996 and 2006 in the South-West of France}
+\end{figure}
+
+Managing the risk of such intense events may influence dairy farmers' production decisions, and their risk preferences.
+The idea is to study precisely how a realized extreme event affects farmers' risk preferences.
+
+\begin{itemize}
+  \item[] {\color{DarkBlue} \textbf{Research questions:}}
+  \begin{itemize}
+    \item[{\color{DarkBlue} $\bullet$}] {\color{DarkBlue} \textit{Is there a change observed in dairy farmers' risk preferences over time?}}
+    \item[{\color{DarkBlue} $\bullet$}]  {\color{DarkBlue} \textit{Do extreme climatic events modify dairy farmers' risk aversion?}}
+    \item[{\color{DarkBlue} $\bullet$}]  {\color{DarkBlue} \textit{Is a nonparametric approach adapted/tractable to answer these question ?}}
+  \end{itemize}
+\end{itemize}
+
+
+\LHead{Analytical framework}
+
+ The usual way of investigating the production risk into a {\color{MonStabilo}stochastic production function} is to consider a Just and Pope \citeyear{Just}, \citeyear{Just2} production function given by:
+\begin{equation} \label{JustPope}
+y=f(x,z)+g(x,z)\epsilon
+\end{equation}
+where $y$ is the observed output quantity, $x$ is a vector of variable input quantities $(x_1, . . . , x_J)$,
+$z$ is a vector of quasi-fixed input quantities $(z_1, . . . , z_K)$, $f(.)$ is the mean production
+function, $g(.)$ is the production risk function. The random term $\epsilon$ represents a {\color{MonStabilo}weather shock} that may affect output, exogenous to farmer's action, with zero mean and a variance of one.
+
+The dairy farmer's optimisation programme is written as follows:
+\begin{equation*}
+Max_{x} \; \;  EU(\pi) = EU\bigg(pf(x,z)+pg(x,z) \epsilon -cx\bigg)
+\end{equation*}
+where $p$ denotes the milk production price, $c$ the vector of variable input prices.\\
+
+
+We get the the following first-order conditions (FOC):
+\begin{equation*}
+E\bigg[U'(\pi)\big(pf_j(x,z)+pg_j(x,z) \epsilon -c_j\big)\bigg]=0 \; \; \;  \forall j=1,..., J
+\end{equation*}
+
+where $U'(.)$ is the marginal utility of profit, $f_j$ and $g_j$ denote the first derivatives of the mean production function and the risk production function, respectively, with respect to the $j$-th variable input. Rewritten in the following way:
+
+\begin{equation}\label{RiskTheo}
+ pf_j(x,z) - c_j - \theta(.) pg_j(x,z)=0 \; \; \; \forall j=1,..., J
+\end{equation}
+
+where $\theta(x,z,p,c) =  \frac{E[U'(\pi)\epsilon]}{E[U'(\pi)]}$ is the {\color{MonStabilo}risk preference function}.
+
+Using a first-order polynomial approximation (see Kumbhakar and Tsionas \citeyear{KumbhakarTsionas}) the risk preference function $\theta(.)$ takes the following form:
+\begin{equation}
+\theta(.)=-AR(\pi)\sigma_{\pi}
+\end{equation}
+
+where $AR(\pi)=\frac{-U''(\pi)}{U'(\pi)}$ is the {\color{MonStabilo}Arrow-Pratt measure of absolute risk aversion} and $\sigma_{\pi}^2=var(\pi)=p^2(g(x,z))^2$.
+
+\end{textblock}
+
+
+% Seconde colonne
+\begin{textblock}{4.5}(5.5,4.5)
+
+\LHead{Nonparametric estimation}
+
+We follow the multi-step procedure proposed by Kumbhakar and Tsionas \citeyear{KumbhakarTsionas} for estimating  the mean production function $f(\cdot)$ , and the production risk function $g(\cdot)$ leading to the risk preference function $\theta(\cdot)$.
+\begin{itemize}
+\item In a first stage, we estimate mean production function $f(\cdot)$ :
+\begin{eqnarray*}
+y & = & f(x,z)+g(x,z)\epsilon \\
+  & = & f(w)+\nu
+\end{eqnarray*}
+where $w$ denotes the vector of all variable inputs (including variable inputs and quasi-fixed inputs), and $\nu$ is the error term. The function $f()$ can then be estimated by $\widehat{f()}$ using classical nonparametric regression methods.
+\begin{equation*}
+ \widehat{f}(w) =  \frac{\sum_{i=1}^n Y_i \; K\left( \frac{W_i -w}{h}\right) }
+    {\sum_{i=1}^n K\left( \frac{W_i - w}{h}\right)}
+\end{equation*}
+Where $K()$ is a multivariate kernel function and $h$ is a vector of bandwidths associated to the set of explanatory variables $w$. Since we are interested mainly by the derivatives of $f()$, we use the {\color{MonStabilo}local linear nonparametric estimation }procedure proposed by Li and Racine \citeyear{Li2004} allowing simultaneous estimation of both the function and its derivatives $f_j(w)$ for $j=1, \ldots, J$.
+
+
+\item In the second stage, we compute the sample residuals $\widehat{e_i} = Y_i - \widehat{f}(W_i)$ of the first stage regression model.
+
+Then we use a local linear nonparametric estimator of $e_i$ (resp. $e_i^2)$ on $w$ to compute the estimator of the  mean risk production function  $\widehat{g}(w)$  and its derivatives $\widehat{g _j}(w)$ for $j=1, \ldots, J$ (resp. the variance $\widehat{\sigma^2}(w)$).
+
+\item Once the mean production function and the mean risk production function and their derivatives have been estimated, we compute the  risk preference function $\theta(\cdot)$ using the FOC in equation \ref{RiskTheo}.
+
+\begin{equation}\label{thetahat}
+\hat{\theta}(\cdot) = \frac{1}{J} \sum_{j=1}^{J} \Bigl[ \frac{{\hat f_j(X)}-c_j/p}{-{\hat g_j(X)}}\Bigr]
+\end{equation}
+
+\end{itemize}
+
+\LHead{Empirical application}
+
+\LHead{{\large Data}}
+
+The sample consists of 2588 dairy farmers from six regions in the Southwestern of France. The period covered is from 1996-2006. Thus total number of observations is 28458. The farm-level data were complemented with weather data for each region from the French Meteorogical Institute.\\
+
+\begin{table}[!h]
+\centering
+\begin{tabular}{llrrrr}\hline\hline
+ & \textbf{Variable} & $\mathbf{mean}$ & $\mathbf{sd}$ & \textbf{min} & \textbf{max} \\
+  \hline
+$ Y$ &  Milk. Prod.(1000 L) &  251.78 & 123.34 & 17.01 & 1407.11 \\
+$X_1$& Irrigated Land (ha) &    4.30 &   7.53 &  0.00 &   80.00 \\
+$X_2$& Purchased feed (kg/cow) & 1420.60 & 424.65 &  0.00 & 8294.00 \\
+$X_3$& Farm Land (ha) &   65.12 &  42.42 &  0.10 &  997.00 \\
+$X_4$& Forage crop (ha) &   42.62 &  26.87 &  0.00 &  300.10 \\
+$X_5$& Livestock (Heads) &   64.04 &  29.77 &  6.90 &  367.40 \\
+$Z_1$& Milk Quota (1000 L) &  214.65 & 121.69 &  0.00 & 2102.74 \\
+$Z_2$& Temp (C) &   13.23 &   0.85 & 10.26 &   14.76 \\
+$Z_3$& Evapotranspiration &    2.56 &   0.27 &  2.09 &    3.32 \\
+$Z_4$& Hydric Stress  &   -0.32 &   0.65 & -1.70 &    0.91 \\
+  \hline\hline
+  \end{tabular}
+
+\caption{Descriptive statistics, (1996-2006)}
+\label{StatYear}
+\end{table}
+
+\end{textblock}
+
+
+% troiseimen  colonne
+\begin{textblock}{4.5}(10.5,4.5)
+
+\LHead{{\large Nonparametric estimation implementation}}
+
+
+We use up-to-date nonparametric estimation techniques to compute the ingredients needed for estimating $\theta (\cdot)$ according to equation \ref{thetahat}. As in any nonparametric estimation, the choice of the bandwidth a is a crucial element in the practical implementation. For both the computation of $\widehat{f}(\cdot)$, $\widehat{g}(\cdot)$ and $\widehat{\sigma^2}(\cdot)$, we opted for the computation of {\color{MonStabilo}cross-validated bandwidths} for each each year so that the local linear estimators are automatically balanced between bias and variance. We choose higher order continuous kernels implemented in the R package \textit{np} (Hayfield and Racine \citeyear{Hayfield2008}) %\\
+
+We use another interesting feature of the recent development in nonparametric estimation technique by using {\color{MonStabilo} Kernel Regression Significance Tests}. We run this test based on the work by Racine, Hart, and Li \citeyear{Racine2006} for each year and derive significance of each explanatory variable (399 bootstraps). Hence,  we confirm the significance observed in running a linear regression (t-test). %\\
+
+Finally, we also check \textit{ex-post} whether the risk production function estimated where satisfying classical production function features ($ f' > 0$ and $f'' <0$).
+%One possible extension would be to estimate $f(\cdot)$ under shape constrains (see Du, Parmeter and Racine \citeyear{Du2013})
+
+
+\LHead{{\large Results }}
+
+As an illustration, we report  the partial nonparametric regression plots and results of the significance test for the production function $\widehat{f}(\cdot)$ for the year 2003.
+
+\begin{tabular}{ccccc}
+ &\includegraphics[height=50mm]{Graphics/Poster-Fplot-haspirri.pdf} &
+\includegraphics[height=50mm]{Graphics/Poster-Fplot-concvlr.pdf} &
+\includegraphics[height=50mm]{Graphics/Poster-Fplot-sau.pdf} &
+\includegraphics[height=50mm]{Graphics/Poster-Fplot-cows.pdf} \\
+& \multicolumn{4}{c}{}  \\
+& for \textit{Irrigated Land} &  for \textit{Feed} & for \textit{Farm land} & for \textit{Heads}  \\
+%\multicolumn{2}{l}{Kernel Significance test :} & & \\
+P-value :  &  $<2e-16^{***}$  &  $<2e-16^{***}$ &  $<2e-16^{***}$& $ 2e-16^{***}$
+ \end{tabular}
+
+
+We provide below very preliminary results of the {\color{MonStabilo} distribution of the AR} nonparametrically estimated for each dairy farm each year with a special emphasis on the extreme climatic event year 2003 (in red).\\
+
+
+\begin{figure}[!h]
+\centering
+\includegraphics[height=90mm, width=200mm]{Graphics/Poster-PlotAR.pdf}
+\caption{Distribution of estimated AR over time (1996-2006) }
+\end{figure}
+
+To {\color{MonStabilo} conclude}, the distribution of the nonparametric estimation of dairy farmer's risk aversion is significantly higher when an extreme climatic event occurs.
+
+%\end{textblock}
+%
+%\begin{textblock}{4.5}(10.5,17.5)
+%  \LHead{Bibliography}\\
+
+{\small
+\bibliographystyle{agsm}
+\bibliography{../AGRO_RISK3}
+}
+\end{textblock}
+\end{document}
+

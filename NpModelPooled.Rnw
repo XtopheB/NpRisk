@@ -1,0 +1,645 @@
+% Program exploring the optilait database fron the Stata program
+%  21/01/2015: Importation and first stat desc. 
+
+
+\documentclass[a4paper]{article}
+\usepackage{Sweave, setspace,graphicx,srcltx,enumitem,harvard, subfig}
+
+
+
+% Some Colors
+\usepackage{color}
+
+% COLORS : see webpage http://latexcolor.com/
+
+\definecolor{DarkBlue}{rgb}{0.1,0.1,0.5}
+\definecolor{Red}{rgb}{0.9,0.0,0.1}
+\definecolor{vert}{rgb}{0.1,0.7,0.2}
+\definecolor{brique}{rgb}{0.7,0.16,0.16}
+\definecolor{blue}{rgb}{0.36, 0.54, 0.66}  % airforceblue
+\definecolor{navy}{rgb}{0.0, 0.0, 0.5}        % navyblue
+
+ 
+\title{The impact of extreme climatic events on farmers' risk preferences\\ {\color{brique}Pooled version !}}
+\author{Christophe Bontemps, Stephane Couture }
+
+
+
+\begin{document}
+\SweaveOpts{concordance=TRUE}
+%\SweaveOpts{concordance=TRUE}
+
+% Quelques Options de dipart pour mettre les graphiques dans un sous ripertoire
+% et leur donner le nom Graph-001
+
+\SweaveOpts{prefix.string= Graphics/Pool}  
+%\setkeys{Gin}{width=0.8\textwidth}
+
+% Et pour laisser l affichage des commentaires du programmes
+\SweaveOpts{keep.source=TRUE}
+
+\maketitle
+\date
+
+
+
+<<echo=false,results=hide, label=packages>>=
+## Start 
+start.time <- Sys.time()
+#rm(list=ls())
+Myroot <- "D:/progs/Optilait/"
+#Myroot  <- "C:/Chris/progs/Optilait/"   
+# setwd(Myroot)  # Ne pas donner de chemin dans un Sweave 
+
+## libraries
+
+
+library(np)
+library(foreign)
+library(AER)
+library(Formula)
+library(xtable)
+library(texreg)
+library(coefplot)
+#library(VIM)
+library(reporttools)
+library(ggplot2)
+library(grid)
+library(KernSmooth)
+options(np.messages=FALSE)
+library(stargazer)
+
+
+RVersion <- R.version.string
+npVersion <- packageVersion("np")
+
+@
+
+
+<<echo=false,results=hide, label=data>>=
+## DATA 
+# File already merged with weather data
+data.all <- read.dta(paste(Myroot,"data/OptilaitMerge.dta", sep=""))    # All years 
+# On cylindre data.all   !!!!!  Achtung : deletion of some obs (not necesseray ) 
+data.all <- data.all[complete.cases(data.all),]
+# data.all$annee <- ordered(data.all$annee)
+data.all$region <- factor(data.all$region)
+
+
+@
+
+<<echo=false,results=hide, label=Parameters >>=
+
+# List of POOLED years studied 
+Y.min <- 2001
+Y.max <- 2005
+
+data.pool <- subset(data.all, annee >= Y.min & annee <= Y.max)
+attach(data.pool)
+
+
+@
+
+\begin{center}
+{\Large{Focus on the period  {\color{brique}{\Sexpr{Y.min} - \Sexpr{Y.max}}} !}\\
+
+Version with seperate computation of CV bandwidths for f and g.   }
+\end{center}
+
+\clearpage
+
+
+\section{Data}
+
+The dataset for years [\Sexpr{Y.min},  \Sexpr{Y.max}]  has {\color{DarkBlue}\Sexpr{nrow(data.pool)}} observations and is composed of production variables merged at the pedoclimatic region level with climatic information, nammely temperature (T), evapotranspiration (ETP) and hydric stress (DELTA).\footnote{The Hydric stress (DELTAyear) is defined as the difference between precipitation and  evapotranspiration.}   
+
+<<echo=false,results=hide, label=PlotFunction >>=
+MonBoxPlotPool <- function(x){  # x is the number of the variable represented
+  boxplot(data.pool[,x]~annee, 
+           outline =FALSE,
+            #col = color.list,  # defined automatically above
+            #col= c(0,0,0,0,0,0,0,2,0,0,0),
+            #col=rainbow(12),    ### Add a little color :)
+            main=paste("",names(data.pool)[x],"by year"),  ### Give the graph a main title
+            xlab="Year",    #### Give the graph an x-axis label
+            ylab= paste("",names(data.pool)[x],"")  #### Give the graph a y-axis label
+  )
+}
+
+# loading the multiplot functions
+source(paste(Myroot,"Progs/multiplot.R", sep=""))
+@
+
+<<fig=TRUE,echo=false, label=BoxVarsWeather>>=
+par(omi=c(0,0,1,0) )                      #set the size of the outer margins 
+par(mfrow=c(2,2))    
+MonBoxPlotPool(7)  # Production
+MonBoxPlotPool(14)
+MonBoxPlotPool(15)
+MonBoxPlotPool(16)
+
+mtext("Total production and climatic variables over time",3,outer=TRUE,line=1,cex=1.0) 
+@
+
+%' 
+%' <<fig=TRUE,echo=false, label=LinePlot>>=
+%'  TODO: REDO THIS GRAPH....
+%' 
+%' #set parameters for this graph
+%' # Create Line Chart
+%' nc <- length(unique(data.year$region))
+%' Group <-unique(data.year$region)
+%' 
+%' MonLinePlot  <- function(v, vname){
+%'   # get the range for the x and y axis 
+%'   xrange <- range(data.year[,4], finite=TRUE)  # annee
+%'   yrange <- range(data.year[,v], finite=TRUE)  # climatic variable
+%'   
+%'   plot(xrange, yrange, type="n",
+%'        xlab="Years",
+%'        ylab= vname, 
+%'        #title = "Temperature by regions"
+%'        ) 
+%'   colors <- rainbow(nc) 
+%'   linetype <- c(1:nc) 
+%'   #plotchar <- seq(18,18+nc,1)
+%'   
+%'   for (i in 1:nc) { 
+%'       foo <- subset(data.year, region== Group[i])
+%'       lines(foo[,4], foo[,v], type="b", lwd=1.5,
+%'       lty=linetype[i], col=colors[i]) 
+%'      } 
+%' }
+%' 
+%' #set up the plot 
+%' par(omi=c(0,0,1,0) )  
+%' par(mfrow=c(2,2))    
+%' MonBoxPlotPool(7)  # Production
+%' MonLinePlot(1,"Tyear" )
+%' MonLinePlot(2,"ETPyear" )
+%' MonLinePlot(3,"DELTAyear" )
+%' 
+%' mtext("Overview of production and climatic variabes over time by region",3,outer=TRUE,line=1,cex=1.0) 
+%' @
+
+\section{Production function regression on the selected sample}
+
+In Table \ref{LinRegAll}, we report linear regression estimations of the function $f()$ on the whole set of explanatory variables $X$ and $Z$ for selected years (N = \Sexpr{nrow(data.pool)}).
+
+<<echo=false, results=tex, label=LinRegAll>>=
+
+x <- paste("sau", "sfp","eqvltotal", "hasfpirri", 
+           "charpot", "quotalait", "concvlr",
+           "ordered(annee)", sep="+")
+## TWO versions od Z 
+
+#z <-  paste("Tyear","ETPyear","DELTAyear" , sep="+")
+z <-  paste("Tprod","ETPprod","DELTAprod" , sep="+")
+
+u <-  paste("factor(region)")
+
+# 16/10/15 : Changing the way we define models. 
+
+fmla1 <- as.formula(paste("laitproduit~ ", paste(x, collapse= "+")))
+lin.all1 <- lm(fmla1, data = data.pool)
+
+fmla2 <- as.formula(paste("laitproduit~ ", paste(x, collapse= "+"), paste(u, collapse= "+"), sep="+"))
+lin.all2 <- lm(fmla2, data = data.pool)
+
+fmla3 <- as.formula(paste("laitproduit~ ", paste(x, collapse= "+"),  paste(z, collapse= "+"), sep="+"))
+lin.all3 <- lm(fmla3, data = data.pool)
+
+fmla4 <- as.formula(paste("laitproduit~ ", paste(x, collapse= "+"),  paste(z, collapse= "+"), paste(u, collapse= "+"), sep="+"))
+lin.all4 <- lm(fmla4, data = data.pool)
+
+
+
+
+# lin.all1 <- lm(formula = laitproduit~sau + sfp + eqvltotal + hasfpirri + charpot
+#               + prixlaiteriemoyen + quotalait  +  concvlr + factor(annee), data=data.pool)
+# 
+#  
+# lin.all2 <- lm(formula = laitproduit~sau +  eqvltotal + hasfpirri + charpot
+#               + prixlaiteriemoyen + quotalait  +  concvlr + factor(annee)
+#                + Tyear + ETPyear + DELTAyear, data=data.pool)
+# 
+# 
+# lin.all3 <- lm(formula = laitproduit~sau  + eqvltotal + hasfpirri + charpot
+#                + quotalait  +  concvlr + factor(annee)
+#               + Tyear  + ETPyear+ DELTAyear  + factor(region), data=data.pool)
+  
+  
+texreg(list(lin.all1,   lin.all4,  lin.all3),
+       stars = c(0.01, 0.05, 0.10), bold = 0.05, 
+       digit= 3, 
+       custom.model.names = c("Mod. Prod", "Mod. prod+weather", "Mod. without climate", " Full Model"),
+       label = "LinRegAll", 
+       caption = paste("First linear regressions, years [",Y.min,",",Y.max,"]",sep=""  )
+        )
+# View on screen
+# stargazer(lin.all1, lin.all2,  lin.all3, lin.all4, type="text")
+
+@
+
+
+%\newpage
+
+\subsection{Visual regressions}
+
+We visualize in these graphs, the coefficients corresponding to models presented in Table \ref{LinRegYearCows} which are represented in red if statiscally significant, and in blue if not. For clarity, \textit{Intercepts} and \textit{Charpot} coefficients are omitted.\\ 
+
+<<fig=TRUE,echo=false, results=hide, label=RegPlot>>=
+plotreg(list(lin.all1, lin.all2, lin.all4, lin.all3),
+        omit.coef = "(Intercept)|(charpot)", 
+        mfrow= TRUE
+        ) 
+@
+
+%\clearpage
+<<fig=TRUE,echo=false, results=hide, label=CoefPlot>>=
+multiplot(lin.all1, lin.all2, lin.all3)
+@
+
+%\newpage
+
+\section{Nonparametric estimation}
+
+<<echo=false, results=hide, label=parametersNP>>=
+# loading the functions
+source(paste(Myroot,"Progs/NpRiskFunctions.R", sep="")) 
+
+NpMethod <- "SILVERMAN"
+#NpMethod <- "CV"
+
+#Parametre multiplicatif des fenetres de Silverman (ACHTUNG !!)  
+ampli.Silver <- 1
+
+#Number of bootstraps for the  test : ref Li, Maasoumi et Racine (2009)
+Nboot<-9
+#Sub-sample : 0 means All Sample ! 
+N.sample <-0
+
+if (N.sample > 0){
+  Message <- paste("Attention : Estimation realized with a subsample of", N.sample, "observations.")
+  }
+if (N.sample == 0){ 
+  Message <- ""
+  }
+
+@
+
+\textbf{\Sexpr{Message}}
+
+<<echo=false,results=hide, label=NpReg>>=
+# Pooled version of  NpAversion4  (includes a CV computation for f and g)
+risk.pool <- NpPool(Y.min, Y.max, 
+                    N.sample = N.sample,
+                    bwmethod = NpMethod,
+                    ampli = ampli.Silver, 
+                    bwcompute= "TRUE",
+                    datafich = data.all)
+
+@
+
+
+
+<<echo=false,results=verbatim, label=NpResults>>=
+# Loading the models bandwidths and regression estimated  
+
+load(paste(Myroot,"Results/np.pool.",NpMethod,".",Y.min,Y.max,".RData", sep=""))
+summary(bw.f)
+@
+
+ 
+
+\begin{figure}[!ht]
+<<fig=TRUE,echo=false, results=hide, label=NpRegPlot>>=
+
+
+plot(bw.f)
+# plot(bw.f,
+#      plot.errors.method="bootstrap",
+#      plot.errors.boot.num=25,common.scale=FALSE)
+
+# 
+# #Aternative way of doing that 
+# # http://www.inside-r.org/packages/cran/np/docs/npplot 
+
+
+@
+\caption{Partial local linear nonparametric regression plots for the function $f()$ on the dairy farm production set for the  years [\Sexpr{Y.min},  \Sexpr{Y.max}] }
+\end{figure}
+
+\newpage
+%%%%%%%%%%%%%%%%%%%%%%%% END October  13 %%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+<<echo=false,results=hide, label=NpSigTests>>=
+np.f.sig <- npsigtest(bw.f, boot.num = Nboot)
+ 
+save(np.f.sig,  file = paste(Myroot,"Results/sig.pool.f.",NpMethod,".",Y.min,Y.max,".RData", sep=""))
+
+@
+
+\subsection{Testing the significance of the variable in the production function}
+<<echo=false,results=hide, label=NpSigTestsResults, tidy=TRUE>>=
+load(paste(Myroot,"Results/sig.pool.f.",NpMethod,".",Y.min,Y.max,".RData", sep=""))
+summary(np.f.sig)
+@ 
+
+\subsection{Checking the constrains on the production function $f()$:}
+
+One idea would be to estimate this production function under shape constrains (see Du, Parmeter and Racine (2013), "Nonparametric Kernel Regression with Multiple Predictors and Multiple Shape Constraints", (Statistica Sinica) ).
+
+<<echo=false,results=tex, label=Grad1year>>=
+
+Mycap <-paste("Distribution of f's derivatives wrt to inputs, (years", Y.min,Y.max,")", sep="")
+Mystats <-  list( "mean","s",  "min", "q1", "median", "q3",  "max", "n")
+Mylab <- "Grad1year"
+Myvars1 <- with(f.np, data.frame( "wrt :Total Land (ha)" = f.np$grad[,1],
+                                "wrt :Cows" = f.np$grad[,3],
+                                "wrt :Irrigated  Land (ha)" =  f.np$grad[,4],
+                                "wrt :Chargement apparent" = f.np$grad[,5],
+                                "wrt :Grain Consumed (kg per cow)" = f.np$grad[,7]                          
+                                 )
+              )                                                                                                                
+MyNames <- names(Myvars1)
+
+tableContinuous(vars = Myvars1, stats = Mystats, 
+                cap = Mycap,
+                lab =  Mylab,
+                nams = MyNames,
+                prec=2, 
+                longtable = FALSE)
+@
+
+
+<<fig=TRUE, echo=false, results=hide, label=GradF1plot>>=
+
+# Defining the gradients to check 
+
+f1.sau.hat <- bkde(f.np$grad[,1], kernel = "normal")
+f1.cows.hat <- bkde(f.np$grad[,3], kernel = "normal")
+f1.irri.hat <- bkde(f.np$grad[,4], kernel = "normal")
+
+f1.grain.hat <- bkde(f.np$grad[,7], kernel = "normal")
+
+# TODO : Graph to improve 
+
+
+par(omi=c(0,0,1,0) )                      #set the size of the outer margins 
+par(mfrow=c(2,2))    
+plot(f1.sau.hat, type="l", col="blue") 
+# rug(f1.sau.hat)
+abline(v=0, col= "red")
+plot(f1.cows.hat, type="l", col="blue")
+abline(v=0, col= "red")
+plot(f1.irri.hat, type="l", col="blue")
+#rug(f1.irri.hat)
+abline(v=0, col= "red")
+plot(f1.grain.hat, type="l", col="blue")
+abline(v=0, col= "red")
+
+mtext("Distribution of f's derivatives ",3,outer=TRUE,line=1,cex=1.0) 
+
+@
+
+\section{Risk aversion estimation}
+
+
+<<echo=false, label=ComputingAR>>=
+# Individual estimations of theta ad AR   
+
+load(paste(Myroot,"Results/Risknp.pool.",NpMethod,".",Y.min,Y.max,".RData", sep=""))
+
+@
+
+<<echo=false,results=tex, label=TableResults>>=
+
+Mycap <-paste("Distribution of Theta and AR, years [", Y.min,"-",Y.max,"]", sep="")
+
+Mystats <-  list("min", "p10" = function(x){return(quantile(x, 0.1))},
+                 "q1",  "median", "q3", 
+                 "p90" = function(x){return(quantile(x, 0.9))}, 
+                 "max", "n")
+
+
+Mylab <- "TableResults"
+Myvars <- with(risk.results, data.frame("Theta1" = theta1, 
+                                        "Theta2" = theta2, 
+                                        "AR" = AR, 
+                                        "Sigma" = sigma
+                                 ))
+# Code to use if not loading the results..
+#toto <- as.data.frame(c(AR, theta1))
+# Myvars <- with(toto, data.frame("Theta1" = theta1, 
+#                                 "AR" = AR
+#                                  ))
+                                                                                                                       
+tableContinuous(vars = Myvars,
+                stats = Mystats, 
+                cap = Mycap,
+                lab =  Mylab,
+                prec=2, 
+                longtable = FALSE)
+
+@
+
+
+<<echo=false,fig=TRUE, label=PlotResults>>=
+attach(risk.results)
+
+# theta1.tmp <- na.omit(theta1)    # rm missing values  
+theta1.tmp <-theta1[which(theta1 != -Inf & theta1 != Inf )]    # rm infinite values  
+
+AR.tmp <-AR[which(AR!= -Inf  & AR!= Inf )]    # rm infinite values  
+AR.tmp <- na.omit(AR.tmp)  
+
+IQR10.theta1 <- c(quantile(theta1.tmp, 0.1), quantile(theta1.tmp, 0.9))
+IQR10.AR <- c(quantile(AR.tmp, 0.1), quantile(AR.tmp, 0.9))
+
+if (is.finite(IQR10.AR[1])) {  # Sometimes during test, we have All NAs  !!
+    #op <- par()
+    par(mfrow=c(2,1))    
+    boxplot(AR.tmp, horizontal=TRUE, 
+            range= 1.5, outline = FALSE,
+            col="lightblue",
+            main ="",
+            sub = paste("AR, (median =",round(median(AR.tmp),3),")")
+            )
+    abline(v=0, col= "red")
+   
+}   
+     boxplot(theta1.tmp, horizontal=TRUE, 
+            range= 1.5, outline = FALSE, 
+            col="lightblue",
+            main ="", 
+            sub = paste("theta1, (median =",round(median(theta1.tmp),3),")")
+            )
+    abline(v=0, col= "red")
+@
+
+
+<<echo=false,fig=TRUE, label=PlotResultsTheta>>=
+# Densities estimation and plot
+theta1.hat <- bkde(theta1.tmp, kernel = "normal",  
+                   range.x = c(quantile(theta1.tmp, 0.01), quantile(theta1.tmp, 0.99)))
+
+#op <- par(omi=c(0,0,1,0) )                      #set the size of the outer margins 
+op <- par()
+#par(mfrow=c(2,1))    
+plot(theta1.hat, type="l", col="blue",
+     xlab = "Theta1", 
+     ylab = "density")
+rug(theta1, col="grey")
+abline(v=0, col= "red")
+abline(v=IQR10.theta1, col= "grey")
+par(op)
+@
+
+<<echo=false,fig=TRUE, label=PlotResultsAR>>=
+if (length(AR.tmp) >0) { # Sometimes (tests),AR.hat does not exist (AR.tmp is empty)
+    #computing 
+    AR.hat <- bkde(AR.tmp, kernel = "normal",
+                 range.x =c(quantile(AR.tmp, 0.01), quantile(AR.tmp, 0.99) ))
+    #Drawing 
+    plot(AR.hat, type="l", col="blue",
+         xlab = "AR", 
+         ylab = "density")
+    abline(v=0, col= "red")
+    abline(v=IQR10.AR, col= "grey")
+    rug(AR, col="grey")
+} else{ # One need to plot something  !!
+  plot.new()
+}
+#par(op)
+
+@
+
+\section{Aversion over time}
+
+<<echo=FALSE,results=tex, label=TableYears>>=
+
+## Summary statistics Results  
+r <- as.data.frame(risk.results)
+Myvars<- with(risk.results,data.frame( "AR" = r$AR,
+                            "Theta"  = r$theta,
+                              "s2"    = r$sigma,
+                            "Theta 1" = r$theta1,
+                            "Theta 2" = r$theta2) 
+            )
+
+Mystats <-  list( "n", "mean",  "median",  
+                "$\\bar{Mean}$" = function(x){return(mean(x, trim=0.10))},
+                "$\\bar{Median*}$" = function(x){return(median (x, na.rm=TRUE))}
+                ) 
+                
+
+tableContinuous(vars = Myvars , group = r$annee,  stats = Mystats,
+                cap = paste("AR, Theta's estimated values by year."),  
+                prec=3, longtable = FALSE
+                )
+@
+
+\subsection{Graphics}
+
+<<echo =false, fig=TRUE, label=PlotTheta1>>=
+
+risk.results$color.year <- as.factor((risk.results$annee != 2003))
+
+# --- First graph 
+p.theta1 <- ggplot(risk.results, aes(factor(annee), theta1)) 
+# Colors + no draw of outliers 
+p.theta1 <- p.theta1 + geom_boxplot(aes(color=color.year),outlier.colour = NA) 
+
+# Compute lower and upper whisker limits
+# Myrange <- range(risk.results$theta1, finite=TRUE)
+# Myrange <- c(quantile(risk.results$theta1, 0.05, na.rm=TRUE),
+#              quantile(risk.results$theta1, 0.95, na.rm=TRUE))
+
+# Myrange <- c(quantile(subset(risk.results$theta1, annee == 2003), 0.10, na.rm=TRUE), 
+#              quantile(subset(risk.results$theta1, annee == 2003), 0.90, na.rm=TRUE) )
+
+# p.theta1 <- p.theta1+ theme_bw() + coord_cartesian(ylim =Myrange )
+p.theta1 <- p.theta1 +  xlab("Years") 
+p.theta1    + theme(legend.position="none") # remove the legend
+
+@
+
+The study was done for years [\Sexpr{Y.min},  \Sexpr{Y.max}]  
+with {\color{DarkBlue}\Sexpr{nrow(data.pool)}} observations. For bandwidth choice, we use \textbf{\Sexpr{NpMethod}}. 
+<<echo=False, results=verbatim, label=Saving>>=
+time.taken <- Sys.time() - start.time
+time.taken
+date()
+@
+
+
+%' 
+%' <<echo =false, fig=TRUE, label=PlotAR>>=
+%' 
+%' risk.results$color.year <- as.factor((risk.results$annee != 2003))
+%' 
+%' # --- First graph 
+%' p.AR <- ggplot(risk.results, aes(factor(annee), AR)) 
+%' # Colors + no draw of outliers 
+%' p.AR <- p.AR + geom_boxplot(aes(color=color.year),outlier.colour = NA) 
+%' 
+%' # Compute lower and upper whisker limits
+%' Myrange <- range(risk.results$AR, finite=TRUE)
+%' Myrange <- c(quantile(risk.results$AR, 0.05, na.rm=TRUE),
+%'              quantile(risk.results$AR, 0.95, na.rm=TRUE))
+%' 
+%' # Myrange <- c(quantile(subset(risk.results$AR, annee == 2003), 0.10, na.rm=TRUE), 
+%' #              quantile(subset(risk.results$AR, annee == 2003), 0.90, na.rm=TRUE) )
+%' 
+%' p.AR <- p.AR+ theme_bw() + coord_cartesian(ylim =Myrange )
+%' p.AR <- p.AR +  xlab("Years") 
+%' p.AR    + theme(legend.position="none") # remove the legend
+%' 
+%' 
+%' @
+
+\end{document}
+
+
+
+
+%graph of firms over time (!!!TBC)
+% 
+% <<echo=FALSE,  fig=FALSE, label=FarmsOverTime >>=
+% data.graph <- subset(data.all, laitproduit > quantile(laitproduit,0.999 ))
+% 
+% # Create Line Chart
+% nc <- length(unique(data.graph$ident))
+% Firms <-unique(data.graph$ident)
+% 
+% # get the range for the x and y axis 
+% xrange <- range(data.graph$annee)
+% yrange <- range(data.graph$laitproduit, finite=TRUE) 
+% 
+% # set up the plot 
+% plot(xrange, yrange, type="n", xlab="Years",
+%      ylab="Y" ) 
+% colors <- rainbow(nc) 
+% linetype <- c(1:nc) 
+% plotchar <- seq(18,18+nc,1)
+% 
+% # add lines 
+% for (i in 1:nc) { 
+%     foo <- subset(data.graph, ident== Firms[i])  
+%     lines(foo$annee, foo$laitproduit, type="b", lwd=1.5,
+%     lty=linetype[i], col=colors[i]) 
+%     text(x=(max(foo$year,na.rm=TRUE)-1), y=max(foo$Y,na.rm=TRUE ), pos=4, labels=Firms[i],col="red" )#col=colors[i])
+% } 
+% 
+% # add a title and subtitle 
+% title("Dairy Farms production   (x1000 l) over time", 
+%       sub=paste("We have ",nc," distinct farms on this graph for",
+%                 length(unique(data.graph$annee)),"years)"))
+% 
+% # add a legend 
+% #legend(xrange[1], yrange[2], Car[1:nc], cex=0.8, col=colors,
+% #    pch=plotchar, lty=linetype, title="Carriers", horiz=FALSE)
+% 
+% @
